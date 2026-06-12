@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hierarchical Modeling of ICD Codes in EHR Foundation Models</title>
+<meta name="description" content="HICD-BERT and HICD-Graph: two complementary mechanisms for injecting ICD-10 hierarchy into EHR foundation models." />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header class="hero">
+  <div class="container">
+    <h1 class="title">Hierarchical Modeling of ICD Codes<br/>in EHR Foundation Models</h1>
+
+    <ul class="authors">
+      <li><a href="#" class="author">Megha Thukral</a><sup>1</sup></li>
+      <li><a href="#" class="author">Dong Gyun Kang</a><sup>1</sup></li>
+      <li><a href="#" class="author">Rudra Pratap Singh</a><sup>1</sup></li>
+      <li><a href="#" class="author">Shruthi Kashinath Hiremath</a><sup>2</sup></li>
+      <li><a href="#" class="author">Katrin Hänsel</a><sup>2</sup></li>
+      <li><a href="#" class="author">Thomas Plötz</a><sup>1</sup></li>
+    </ul>
+
+    <ul class="affiliations">
+      <li><sup>1</sup> School of Interactive Computing, Georgia Institute of Technology</li>
+      <li><sup>2</sup> Optum AI</li>
+    </ul>
+
+    <p class="venue">Preprint · Under Review</p>
+
+    <ul class="links">
+      <li><a href="#" class="btn">Paper (PDF)</a></li>
+      <li><a href="https://github.com/meghathukral/HICD_EHR_FMs" class="btn">Code</a></li>
+      <li><a href="#bibtex" class="btn">BibTeX</a></li>
+    </ul>
+  </div>
+</header>
+
+<main class="container">
+
+<!-- Teaser figure -->
+<section id="teaser">
+  <figure>
+    <img src="assets/Model.jpg" alt="HICD-BERT and HICD-Graph architecture overview" />
+    <figcaption>
+      <strong>HICD: Two complementary mechanisms for injecting ICD-10 hierarchy into EHR foundation models.</strong>
+      <em>HICD-BERT</em> adds hierarchy-specific token embeddings (chapter / block / 3-char prefix)
+      to a BEHRT-style transformer; <em>HICD-Graph</em> augments a PMI-weighted diagnosis
+      co-occurrence graph with ICD-10 ontology edges, learns hierarchy-aware code
+      embeddings via a GCN, and uses them to initialise a patient-level transformer.
+    </figcaption>
+  </figure>
+</section>
+
+<!-- Abstract -->
+<section id="abstract">
+  <h2>Abstract</h2>
+  <p>
+    Electronic health record foundation models typically treat ICD diagnosis codes as flat
+    tokens, overlooking the clinically meaningful hierarchical structure that captures
+    disease families, subcategories, and fine-grained diagnostic detail. In this work, we
+    study ICD-10-CM hierarchy as a general inductive bias for clinical representation
+    learning. We investigate two complementary mechanisms for incorporating hierarchy:
+    first, by augmenting diagnosis sequences in a BERT-style transformer with tokens
+    corresponding to different levels of the ICD hierarchy, and second, by injecting
+    hierarchy into graph-based code representations through hierarchy-aware edges combined
+    with diagnosis co-occurrence structure. We conduct experiments on two large-scale
+    real-world clinical datasets: MIMIC-IV, used for pretraining and in-domain evaluation,
+    and eICU, used to assess cross-dataset transfer via frozen-encoder probing. Our
+    findings show that explicitly encoding ICD hierarchy improves over flat code
+    representations in both in-domain and cross-dataset settings, while revealing that the
+    most useful level of hierarchy depends on both the task and the modeling approach.
+  </p>
+</section>
+
+<!-- TL;DR / Contributions -->
+<section id="contributions">
+  <h2>Contributions</h2>
+  <ul>
+    <li>
+      <strong>ICD hierarchy as an inductive bias for EHR foundation models.</strong>
+      We evaluate two complementary paradigms (token-level injection in
+      <em>HICD-BERT</em> and graph-level encoding in <em>HICD-Graph</em>) with a systematic
+      ablation over three hierarchy levels, showing that hierarchy significantly improves
+      performance in <strong>26 of 28</strong> comparisons.
+    </li>
+    <li>
+      <strong>Cross-dataset transfer.</strong> Under a frozen-encoder probe from MIMIC-IV
+      to eICU, graph-based hierarchy encoding transfers robustly to a new dataset, while
+      token-level hierarchy is more tied to the source distribution.
+    </li>
+    <li>
+      <strong>Embedding analysis.</strong> Hierarchy produces tighter, clinically coherent
+      code clusters, and configurations with the tightest clusters also achieve the
+      strongest downstream performance.
+    </li>
+  </ul>
+</section>
+
+<!-- Method -->
+<section id="method">
+  <h2>Method</h2>
+
+  <h3>ICD-10 hierarchy levels (G0, G1, G2)</h3>
+  <p>
+    Each ICD-10-CM diagnosis code belongs to a <em>chapter</em> (G0), an officially
+    defined <em>block</em> of related categories (G1), and a three-character
+    <em>category</em> (G2). We treat (G0, G1, G2) ∈ {0,1}<sup>3</sup> as eight ablation
+    settings, where (0,0,0) is the no-hierarchy baseline.
+  </p>
+
+  <figure>
+    <img src="assets/icd_10_code.png" alt="ICD-10-CM code structure" />
+    <figcaption>Structure of an ICD-10-CM diagnosis code (e.g. S72.001A).</figcaption>
+  </figure>
+
+  <div class="figgrid">
+    <figure>
+      <img src="assets/HICD-BERT.png" alt="HICD-BERT architecture" />
+      <figcaption>(a) HICD-BERT — additive hierarchy embeddings on a BEHRT-style encoder.</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/HICD-Graph.png" alt="HICD-Graph architecture" />
+      <figcaption>(b) HICD-Graph — GCN over a diagnosis co-occurrence graph augmented with ICD-10 ontology edges, feeding a patient-level transformer.</figcaption>
+    </figure>
+  </div>
+
+  <h3>HICD-BERT — token-level injection</h3>
+  <p>
+    Extends BEHRT. Each diagnosis token's input embedding is the sum of code, age,
+    position, and segment embeddings plus up to three additive hierarchy embeddings,
+    one per enabled level (1-/2-/3-character string prefix). The hierarchy-aware
+    embedding layer is the <em>only</em> change to the BEHRT backbone, and the model
+    is pretrained with masked language modeling and fine-tuned per task.
+  </p>
+
+  <h3>HICD-Graph — graph-level encoding</h3>
+  <p>
+    Constructs a diagnosis graph with PMI-weighted co-occurrence edges, augmented with
+    uniform-weight hierarchy edges from each ICD code to its enabled ancestor nodes
+    (ICD-10 chapter, official block, 2-character prefix). A two-layer GCN trained with a
+    link-prediction objective learns hierarchy-aware code embeddings, which initialise
+    a patient-level transformer (masked mean pooling per visit, attention pooling across
+    visits).
+  </p>
+
+  <figure>
+    <img src="assets/icd_chapter_hier.png" alt="Example HICD-Graph hierarchy subgraph" />
+    <figcaption>
+      Worked example of how leaf ICD-10 codes share hierarchy ancestor nodes in
+      HICD-Graph. Codes within the same block and chapter (e.g. I50 and I51) exchange
+      messages via shared ancestor nodes during GCN message passing, while unrelated
+      leaves remain geometrically distant.
+    </figcaption>
+  </figure>
+</section>
+
+<!-- Tasks -->
+<section id="tasks">
+  <h2>Tasks &amp; datasets</h2>
+  <ul>
+    <li><strong>30-day readmission</strong> (MIMIC-IV) — does the patient return within 30 days of discharge?</li>
+    <li><strong>Emergency-admission prediction</strong> (MIMIC-IV) — is the next admission emergency-class?</li>
+    <li><strong>ICU readmission</strong> (eICU) — frozen-encoder transfer probe from MIMIC-IV.</li>
+  </ul>
+</section>
+
+<!-- Results -->
+<section id="results">
+  <h2>Results</h2>
+
+  <h3>In-domain — 30-day readmission</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Group</th>
+        <th>Hierarchy</th>
+        <th>HICD-BERT F1-macro</th>
+        <th>HICD-BERT AUROC</th>
+        <th>HICD-Graph F1-macro</th>
+        <th>HICD-Graph AUROC</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Baseline</td><td>No hierarchy</td><td>0.5786</td><td>0.6808</td><td>0.5976</td><td>0.6992</td></tr>
+      <tr><td rowspan="3">Single-level</td><td>G0</td><td>0.5825</td><td>0.6858*</td><td>0.6025*</td><td>0.7086*</td></tr>
+      <tr><td>G1</td><td>0.5740*</td><td>0.6811</td><td>0.6006*</td><td>0.7079*</td></tr>
+      <tr><td>G2</td><td>0.5896*</td><td>0.6921*</td><td>0.6005*</td><td>0.7086*</td></tr>
+      <tr><td rowspan="3">Two-level</td><td>G0+G1</td><td>0.5696*</td><td>0.6863*</td><td><strong>0.6088*</strong></td><td>0.7105*</td></tr>
+      <tr><td>G0+G2</td><td><strong>0.5953*</strong></td><td>0.6918*</td><td>0.5999</td><td>0.7097*</td></tr>
+      <tr><td>G1+G2</td><td>0.5834*</td><td>0.6917*</td><td>0.6000</td><td>0.7113*</td></tr>
+      <tr><td>All-levels</td><td>G0+G1+G2</td><td>0.5731*</td><td><strong>0.6923*</strong></td><td>0.5991</td><td><strong>0.7114*</strong></td></tr>
+    </tbody>
+  </table>
+
+  <h3>In-domain — Emergency-admission prediction</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Group</th><th>Hierarchy</th>
+        <th>HICD-BERT F1-macro</th><th>HICD-BERT AUROC</th>
+        <th>HICD-Graph F1-macro</th><th>HICD-Graph AUROC</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Baseline</td><td>No hierarchy</td><td>0.4945</td><td>0.7682</td><td>0.6083</td><td>0.7495</td></tr>
+      <tr><td rowspan="3">Single-level</td><td>G0</td><td>0.4846*</td><td>0.7848*</td><td><strong>0.6373*</strong></td><td>0.7538*</td></tr>
+      <tr><td>G1</td><td>0.5107*</td><td>0.7698</td><td>0.6209*</td><td>0.7555*</td></tr>
+      <tr><td>G2</td><td><strong>0.5200*</strong></td><td><strong>0.7941*</strong></td><td>0.6269*</td><td>0.7556*</td></tr>
+      <tr><td rowspan="3">Two-level</td><td>G0+G1</td><td>0.5138*</td><td>0.7838*</td><td>0.6343*</td><td>0.7557*</td></tr>
+      <tr><td>G0+G2</td><td>0.5159*</td><td>0.7924*</td><td>0.6314*</td><td>0.7557*</td></tr>
+      <tr><td>G1+G2</td><td>0.5118*</td><td>0.7903*</td><td>0.6313*</td><td><strong>0.7577*</strong></td></tr>
+      <tr><td>All-levels</td><td>G0+G1+G2</td><td>0.4988</td><td>0.7917*</td><td>0.6339*</td><td>0.7567*</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Cross-dataset transfer — eICU readmission probe</h3>
+  <p>
+    Frozen MIMIC-IV encoder + linear classifier trained on eICU. Hierarchy benefits
+    transfer more in HICD-Graph (6/7 variants significant) than in HICD-BERT, where only
+    the coarsest level G0 survives the distribution shift.
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>Group</th><th>Hierarchy</th>
+        <th>HICD-BERT F1-macro</th><th>HICD-BERT AUROC</th>
+        <th>HICD-Graph F1-macro</th><th>HICD-Graph AUROC</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Baseline</td><td>No hierarchy</td><td>0.455</td><td>0.565</td><td>0.380*</td><td>0.565</td></tr>
+      <tr><td rowspan="3">Single-level</td><td>G0</td><td>0.453</td><td><strong>0.571*</strong></td><td>0.396*</td><td>0.576*</td></tr>
+      <tr><td>G1</td><td>0.447*</td><td>0.564</td><td>0.487*</td><td>0.578*</td></tr>
+      <tr><td>G2</td><td><strong>0.485*</strong></td><td>0.565</td><td>0.461*</td><td>0.583*</td></tr>
+      <tr><td rowspan="3">Two-level</td><td>G0+G1</td><td>0.432*</td><td>0.568</td><td>0.467*</td><td>0.582*</td></tr>
+      <tr><td>G0+G2</td><td>0.433*</td><td>0.567</td><td><strong>0.487*</strong></td><td>0.579*</td></tr>
+      <tr><td>G1+G2</td><td>0.475*</td><td>0.568</td><td>0.453*</td><td>0.574</td></tr>
+      <tr><td>All-levels</td><td>G0+G1+G2</td><td>0.474*</td><td>0.565</td><td>0.474*</td><td><strong>0.587*</strong></td></tr>
+    </tbody>
+  </table>
+  <p class="note">
+    * p &lt; 0.05 from pairwise DeLong tests on AUROC and paired bootstrap tests on F1-macro,
+    both against the no-hierarchy baseline.
+  </p>
+
+  <h3>Embedding analysis</h3>
+  <div class="figgrid">
+    <figure>
+      <img src="assets/figA_pairwise_sim.png" alt="Pairwise cosine similarity by ICD relationship type" />
+      <figcaption>(a) Pairwise similarity between leaf codes sharing the same G2 prefix and same chapter.</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/figB_intra_g2_sim.png" alt="Within-group similarity across hierarchy configurations" />
+      <figcaption>(b) Within-group similarity across all eight hierarchy configurations; G1+G2 produces the tightest clusters.</figcaption>
+    </figure>
+  </div>
+  <p>
+    All hierarchy-aware variants pull related ICD codes closer in embedding space, and the
+    configurations with the tightest local clusters (G1+G2) also achieve the strongest
+    downstream AUROC, linking representation geometry to predictive accuracy.
+  </p>
+
+  <figure>
+    <img src="assets/fig4_intra_cosine.png" alt="Intra-chapter cosine similarity across hierarchy configurations" />
+    <figcaption>
+      Mean intra-chapter cosine similarity for each ICD-10 chapter (rows) across the eight
+      hierarchy configurations (columns). Hierarchy increases code similarity across the
+      majority of chapters; the largest proportional gains appear in diverse chapters such
+      as Chapter XIX (Injury and poisoning).
+    </figcaption>
+  </figure>
+</section>
+
+<!-- BibTeX -->
+<section id="bibtex">
+  <h2>BibTeX</h2>
+  <pre><code>@article{thukral2026hicd,
+  title   = {Hierarchical Modeling of ICD Codes in EHR Foundation Models},
+  author  = {Thukral, Megha and Kang, Dong Gyun and Singh, Rudra Pratap
+             and Hiremath, Shruthi Kashinath and H{\"a}nsel, Katrin and Pl{\"o}tz, Thomas},
+  journal = {Preprint, Under Review},
+  year    = {2026}
+}</code></pre>
+</section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <p>
+      Code:
+      <a href="https://github.com/meghathukral/HICD_EHR_FMs">github.com/meghathukral/HICD_EHR_FMs</a>
+    </p>
+    <p class="small">
+      Page template adapted from academic project pages.
+      Content © 2026 the authors.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

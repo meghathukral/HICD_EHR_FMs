@@ -39,20 +39,6 @@
 
 <main class="container">
 
-<!-- Teaser figure -->
-<section id="teaser">
-  <figure>
-    <img src="assets/Model.jpg" alt="HICD-BERT and HICD-Graph architecture overview" />
-    <figcaption>
-      <strong>HICD: Two complementary mechanisms for injecting ICD-10 hierarchy into EHR foundation models.</strong>
-      <em>HICD-BERT</em> adds hierarchy-specific token embeddings (chapter / block / 3-char prefix)
-      to a BEHRT-style transformer; <em>HICD-Graph</em> augments a PMI-weighted diagnosis
-      co-occurrence graph with ICD-10 ontology edges, learns hierarchy-aware code
-      embeddings via a GCN, and uses them to initialise a patient-level transformer.
-    </figcaption>
-  </figure>
-</section>
-
 <!-- Abstract -->
 <section id="abstract">
   <h2>Abstract</h2>
@@ -115,16 +101,14 @@
     <figcaption>Structure of an ICD-10-CM diagnosis code (e.g. S72.001A).</figcaption>
   </figure>
 
-  <div class="figgrid">
-    <figure>
-      <img src="assets/HICD-BERT.png" alt="HICD-BERT architecture" />
-      <figcaption>(a) HICD-BERT — additive hierarchy embeddings on a BEHRT-style encoder.</figcaption>
-    </figure>
-    <figure>
-      <img src="assets/HICD-Graph.png" alt="HICD-Graph architecture" />
-      <figcaption>(b) HICD-Graph — GCN over a diagnosis co-occurrence graph augmented with ICD-10 ontology edges, feeding a patient-level transformer.</figcaption>
-    </figure>
-  </div>
+  <figure>
+    <img src="assets/HICD-BERT.png" alt="HICD-BERT architecture" />
+    <figcaption>(a) HICD-BERT — additive hierarchy embeddings on a BEHRT-style encoder.</figcaption>
+  </figure>
+  <figure>
+    <img src="assets/HICD-Graph.png" alt="HICD-Graph architecture" />
+    <figcaption>(b) HICD-Graph — GCN over a diagnosis co-occurrence graph augmented with ICD-10 ontology edges, feeding a patient-level transformer.</figcaption>
+  </figure>
 
   <h3>HICD-BERT — token-level injection</h3>
   <p>
@@ -145,15 +129,6 @@
     visits).
   </p>
 
-  <figure>
-    <img src="assets/icd_chapter_hier.png" alt="Example HICD-Graph hierarchy subgraph" />
-    <figcaption>
-      Worked example of how leaf ICD-10 codes share hierarchy ancestor nodes in
-      HICD-Graph. Codes within the same block and chapter (e.g. I50 and I51) exchange
-      messages via shared ancestor nodes during GCN message passing, while unrelated
-      leaves remain geometrically distant.
-    </figcaption>
-  </figure>
 </section>
 
 <!-- Tasks -->
@@ -193,56 +168,10 @@
       <tr><td>All-levels</td><td>G0+G1+G2</td><td>0.5731*</td><td><strong>0.6923*</strong></td><td>0.5991</td><td><strong>0.7114*</strong></td></tr>
     </tbody>
   </table>
-
-  <h3>In-domain — Emergency-admission prediction</h3>
-  <table>
-    <thead>
-      <tr>
-        <th>Group</th><th>Hierarchy</th>
-        <th>HICD-BERT F1-macro</th><th>HICD-BERT AUROC</th>
-        <th>HICD-Graph F1-macro</th><th>HICD-Graph AUROC</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr><td>Baseline</td><td>No hierarchy</td><td>0.4945</td><td>0.7682</td><td>0.6083</td><td>0.7495</td></tr>
-      <tr><td rowspan="3">Single-level</td><td>G0</td><td>0.4846*</td><td>0.7848*</td><td><strong>0.6373*</strong></td><td>0.7538*</td></tr>
-      <tr><td>G1</td><td>0.5107*</td><td>0.7698</td><td>0.6209*</td><td>0.7555*</td></tr>
-      <tr><td>G2</td><td><strong>0.5200*</strong></td><td><strong>0.7941*</strong></td><td>0.6269*</td><td>0.7556*</td></tr>
-      <tr><td rowspan="3">Two-level</td><td>G0+G1</td><td>0.5138*</td><td>0.7838*</td><td>0.6343*</td><td>0.7557*</td></tr>
-      <tr><td>G0+G2</td><td>0.5159*</td><td>0.7924*</td><td>0.6314*</td><td>0.7557*</td></tr>
-      <tr><td>G1+G2</td><td>0.5118*</td><td>0.7903*</td><td>0.6313*</td><td><strong>0.7577*</strong></td></tr>
-      <tr><td>All-levels</td><td>G0+G1+G2</td><td>0.4988</td><td>0.7917*</td><td>0.6339*</td><td>0.7567*</td></tr>
-    </tbody>
-  </table>
-
-  <h3>Cross-dataset transfer — eICU readmission probe</h3>
-  <p>
-    Frozen MIMIC-IV encoder + linear classifier trained on eICU. Hierarchy benefits
-    transfer more in HICD-Graph (6/7 variants significant) than in HICD-BERT, where only
-    the coarsest level G0 survives the distribution shift.
-  </p>
-  <table>
-    <thead>
-      <tr>
-        <th>Group</th><th>Hierarchy</th>
-        <th>HICD-BERT F1-macro</th><th>HICD-BERT AUROC</th>
-        <th>HICD-Graph F1-macro</th><th>HICD-Graph AUROC</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr><td>Baseline</td><td>No hierarchy</td><td>0.455</td><td>0.565</td><td>0.380*</td><td>0.565</td></tr>
-      <tr><td rowspan="3">Single-level</td><td>G0</td><td>0.453</td><td><strong>0.571*</strong></td><td>0.396*</td><td>0.576*</td></tr>
-      <tr><td>G1</td><td>0.447*</td><td>0.564</td><td>0.487*</td><td>0.578*</td></tr>
-      <tr><td>G2</td><td><strong>0.485*</strong></td><td>0.565</td><td>0.461*</td><td>0.583*</td></tr>
-      <tr><td rowspan="3">Two-level</td><td>G0+G1</td><td>0.432*</td><td>0.568</td><td>0.467*</td><td>0.582*</td></tr>
-      <tr><td>G0+G2</td><td>0.433*</td><td>0.567</td><td><strong>0.487*</strong></td><td>0.579*</td></tr>
-      <tr><td>G1+G2</td><td>0.475*</td><td>0.568</td><td>0.453*</td><td>0.574</td></tr>
-      <tr><td>All-levels</td><td>G0+G1+G2</td><td>0.474*</td><td>0.565</td><td>0.474*</td><td><strong>0.587*</strong></td></tr>
-    </tbody>
-  </table>
   <p class="note">
     * p &lt; 0.05 from pairwise DeLong tests on AUROC and paired bootstrap tests on F1-macro,
-    both against the no-hierarchy baseline.
+    both against the no-hierarchy baseline. Full tables for emergency-admission prediction
+    and cross-dataset transfer to eICU appear in the paper.
   </p>
 
   <h3>Embedding analysis</h3>
@@ -262,15 +191,6 @@
     downstream AUROC, linking representation geometry to predictive accuracy.
   </p>
 
-  <figure>
-    <img src="assets/fig4_intra_cosine.png" alt="Intra-chapter cosine similarity across hierarchy configurations" />
-    <figcaption>
-      Mean intra-chapter cosine similarity for each ICD-10 chapter (rows) across the eight
-      hierarchy configurations (columns). Hierarchy increases code similarity across the
-      majority of chapters; the largest proportional gains appear in diverse chapters such
-      as Chapter XIX (Injury and poisoning).
-    </figcaption>
-  </figure>
 </section>
 
 <!-- BibTeX -->

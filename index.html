@@ -39,6 +39,16 @@
 
 <main class="container">
 
+<!-- Teaser -->
+<section id="teaser">
+  <figure class="teaser">
+    <img src="assets/icd_10_code.png" alt="Structure of an ICD-10-CM diagnosis code" />
+    <figcaption>
+      ICD-10-CM diagnosis codes carry nested clinical structure: chapter → block → 3-character category → specific diagnosis. HICD models this hierarchy as an inductive bias.
+    </figcaption>
+  </figure>
+</section>
+
 <!-- Abstract -->
 <section id="abstract">
   <h2>Abstract</h2>
@@ -96,16 +106,11 @@
     settings, where (0,0,0) is the no-hierarchy baseline.
   </p>
 
-  <figure>
-    <img src="assets/icd_10_code.png" alt="ICD-10-CM code structure" />
-    <figcaption>Structure of an ICD-10-CM diagnosis code (e.g. S72.001A).</figcaption>
-  </figure>
-
-  <figure>
+  <figure class="method-fig">
     <img src="assets/HICD-BERT.png" alt="HICD-BERT architecture" />
     <figcaption>(a) HICD-BERT — additive hierarchy embeddings on a BEHRT-style encoder.</figcaption>
   </figure>
-  <figure>
+  <figure class="method-fig method-fig--wide">
     <img src="assets/HICD-Graph.png" alt="HICD-Graph architecture" />
     <figcaption>(b) HICD-Graph — GCN over a diagnosis co-occurrence graph augmented with ICD-10 ontology edges, feeding a patient-level transformer.</figcaption>
   </figure>
